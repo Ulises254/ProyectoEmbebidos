@@ -1,0 +1,190 @@
+#include<stdint.h>
+#include<stdbool.h>
+
+// Definiciones de registros del puerto y del módulo I2C (igual que antes)
+#define SYSCTL_RCGCGPIO_R       (*((volatile uint32_t *)0x400FE608))
+#define SYSCTL_RCGCI2C_R        (*((volatile uint32_t *)0x400FE620))
+#define SYSCTL_PRGPIO_R        (*((volatile uint32_t *)0x400FEA08))
+#define GPIO_PORTB_AFSEL_R      (*((volatile uint32_t *)0x40059420))
+#define GPIO_PORTB_ODR_R        (*((volatile uint32_t *)0x4005950C))
+#define GPIO_PORTB_DEN_R        (*((volatile uint32_t *)0x4005951C))
+#define GPIO_PORTB_PCTL_R       (*((volatile uint32_t *)0x4005952C))
+#define GPIO_PORTB_DATA_R       (*((volatile uint32_t *)0x400593FC))
+
+#define I2C0_MSA_R              (*((volatile uint32_t *)0x40020000))
+#define I2C0_MCS_R              (*((volatile uint32_t *)0x40020004))
+#define I2C0_MDR_R              (*((volatile uint32_t *)0x40020008))
+#define I2C0_MTPR_R             (*((volatile uint32_t *)0x4002000C))
+#define I2C0_MCR_R              (*((volatile uint32_t *)0x40020020))
+
+// Definición de bits de control para I2C
+#define I2C_MCS_RUN 0x00000001
+#define I2C_MCS_START 0x00000002
+#define I2C_MCS_STOP 0x00000004
+#define I2C_MCS_ACK 0x00000008
+#define I2C_MCS_ERROR 0x00000002
+
+// Direcciones y registros del PCA9685
+#define PCA9685_ADDRESS 0x40
+#define MODE1 0x00
+#define MODE2 0x01
+#define PRE_SCALE 0xFE
+
+// Variables para los valores de posición del servo
+#define SERVO_MIN  90 // 1 ms para 0 grados-----90
+#define SERVO_MID  310  // 1.5 ms para 90 grados---310
+#define SERVO_MAX 530 // 2 ms para 180 grados----530
+
+void I2C_Write(uint8_t device_address, uint8_t register_address, uint8_t data);
+void PCA9685_Init(void);
+void Servo_SetPosition(uint8_t channel, uint16_t on_value, uint16_t off_value);
+int esperar(void);
+void I2C_Init(void);
+void delay(int count);
+int i=0;
+int error;
+
+int main(void) {
+    I2C_Init();    // Inicializa I2C
+    PCA9685_Init(); // Inicializa PCA9685
+
+    while (1) {
+
+/////SERVO 1
+        // Mueve el servo a 0 grados (1 ms)
+        Servo_SetPosition(0, 0, SERVO_MIN);
+        delay(1000000);  // Espera
+
+        // Mueve el servo a 90 grados (1.5 ms)
+        Servo_SetPosition(0, 0, SERVO_MID);
+        delay(1000000);  // Espera
+
+        // Mueve el servo a 180 grados (2 ms)
+        Servo_SetPosition(0, 0, SERVO_MAX);
+        delay(1000000);  // Espera
+/////SERVO 2
+        // Mueve el servo a 0 grados (1 ms)
+        Servo_SetPosition(1, 0, SERVO_MIN);
+        delay(1000000);  // Espera
+
+        // Mueve el servo a 90 grados (1.5 ms)
+        Servo_SetPosition(1, 0, SERVO_MID);
+        delay(1000000);  // Espera
+
+        // Mueve el servo a 180 grados (2 ms)
+        Servo_SetPosition(1, 0, SERVO_MAX);
+        delay(1000000);  // Espera
+
+////SERVO 3
+       // Mueve el servo a 0 grados (1 ms)
+      Servo_SetPosition(2, 0, SERVO_MIN);
+      delay(1000000);  // Espera
+
+      // Mueve el servo a 90 grados (1.5 ms)
+      Servo_SetPosition(2, 0, SERVO_MID);
+      delay(1000000);  // Espera
+
+       // Mueve el servo a 180 grados (2 ms)
+       Servo_SetPosition(2, 0, SERVO_MAX);
+       delay(1000000);  // Espera
+
+////SERVO 4
+       // Mueve el servo a 0 grados (1 ms)
+        Servo_SetPosition(3, 0, SERVO_MIN);
+        delay(1000000);  // Espera
+
+      // Mueve el servo a 90 grados (1.5 ms)
+        Servo_SetPosition(3, 0, SERVO_MID);
+        delay(1000000);  // Espera
+
+      // Mueve el servo a 180 grados (2 ms)
+        Servo_SetPosition(3, 0, SERVO_MAX);
+        delay(1000000);  // Espera
+
+////SERVO 5
+        // Mueve el servo a 0 grados (1 ms)
+        Servo_SetPosition(4, 0, SERVO_MIN);
+        delay(1000000);  // Espera
+
+       // Mueve el servo a 90 grados (1.5 ms)
+        Servo_SetPosition(4, 0, SERVO_MID);
+        delay(1000000);  // Espera
+
+       // Mueve el servo a 180 grados (2 ms)
+        Servo_SetPosition(4, 0, SERVO_MAX);
+        delay(1000000);  // Espera
+
+    }
+}
+
+// Inicializa el módulo PCA9685
+void PCA9685_Init(void) {
+    I2C_Write(PCA9685_ADDRESS, MODE1, 0x10);  // Reinicia y configura el PCA9685
+    I2C_Write(PCA9685_ADDRESS, MODE2, 0x04);  // Modo de salida
+    I2C_Write(PCA9685_ADDRESS, PRE_SCALE, 0x79);  // Configura el pre-escaler para 50 Hz (valor calculado para 50 Hz)
+    I2C_Write(PCA9685_ADDRESS, MODE1, 0xA1);
+
+}
+
+// Función para controlar el canal del servo
+void Servo_SetPosition(uint8_t channel, uint16_t on_value, uint16_t off_value) {
+    I2C_Write(PCA9685_ADDRESS, 0x06 + 4 * channel, on_value & 0xFF);     // LEDn_ON_L
+    I2C_Write(PCA9685_ADDRESS, 0x07 + 4 * channel, on_value >> 8);       // LEDn_ON_H
+    I2C_Write(PCA9685_ADDRESS, 0x08 + 4 * channel, off_value & 0xFF);    // LEDn_OFF_L
+    I2C_Write(PCA9685_ADDRESS, 0x09 + 4 * channel, off_value >> 8);      // LEDn_OFF_H
+}
+
+// Función para escribir datos por I2C
+void I2C_Write(uint8_t device_address, uint8_t register_address, uint8_t data) {
+
+    while(I2C0_MCS_R&0x00000001){};
+
+    I2C0_MSA_R = (device_address << 1) & 0xFE;  // Dirección del esclavo
+    I2C0_MDR_R = register_address;  // Registro al que escribir
+    I2C0_MCS_R = (I2C_MCS_START | I2C_MCS_RUN);  // Inicia la transmisión
+    for(i=0;i<150;i++){}
+    esperar();
+
+
+    I2C0_MDR_R = data;  // Enviar el dato
+    I2C0_MCS_R = (I2C_MCS_STOP | I2C_MCS_RUN);  // Condición de parada
+    for(i=0;i<150;i++){}
+    esperar();
+
+}
+
+// Función de delay simple
+int esperar(){
+    while(I2C0_MCS_R&0x00000001){}; //Espero a que la transmisión acabe
+      if(I2C0_MCS_R&0x00000002==1){ //¿Hubo error?
+          error=1;
+          return error;
+      };
+      return 0;
+
+}
+
+
+// Inicialización básica de I2C
+void I2C_Init(void) {
+    // Configuración de pines y módulo I2C, similar a la que ya tienes en tu código
+    SYSCTL_RCGCGPIO_R |= 0x02;   // Habilitar puerto B
+    SYSCTL_RCGCI2C_R |= 0x01;    // Habilitar I2C módulo 0
+    while((SYSCTL_PRGPIO_R&0x0002) == 0){};
+    while(I2C0_MCS_R&0x00000001){};
+
+
+    GPIO_PORTB_AFSEL_R |= 0x0C;  // Activar funciones alternativas para PB2 y PB3
+    GPIO_PORTB_ODR_R |= 0x08;    // Activar Open-Drain para PB3 (SDA)
+    GPIO_PORTB_DEN_R |= 0x0C;    // Habilitar el pin digital para PB2 y PB3
+    GPIO_PORTB_PCTL_R = 0x00002200;
+
+    I2C0_MCR_R = 0x10;           // Inicializar el maestro I2C
+    I2C0_MTPR_R = 0x07;          // Configuración de velocidad de I2C para ~100kHz
+}
+
+void delay(int count) {
+    while (count--) {
+        // Ciclo vacío para esperar
+    }
+}
